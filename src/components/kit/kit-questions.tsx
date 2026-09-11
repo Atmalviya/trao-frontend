@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegenerateButton } from "@/components/ui/regenerate-button";
 import { api } from "@/lib/api";
+import { syncKitFromQuestionMutation } from "@/lib/sync-kit-cache";
 import type { Kit, Question, QuestionCategory } from "@/lib/types";
 import { questionCategories } from "@/lib/types";
 import {
@@ -28,7 +29,10 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+
+/** Sticky app header (h-14) plus a little breathing room. */
+const SCROLL_TOP_OFFSET = 72;
 
 const CATEGORY_LABELS: Record<QuestionCategory, string> = {
   technical: "Technical",
@@ -47,6 +51,19 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [regenCategory, setRegenCategory] = useState<QuestionCategory>("technical");
   const [error, setError] = useState<string | null>(null);
+  const categoryRefs = useRef<Partial<Record<QuestionCategory, HTMLDivElement | null>>>({});
+  const scrollAfterRegenRef = useRef<QuestionCategory | null>(null);
+
+  const scrollToCategory = useCallback((category: QuestionCategory) => {
+    const node = categoryRefs.current[category];
+    if (!node) return;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const top = node.getBoundingClientRect().top + window.scrollY - SCROLL_TOP_OFFSET;
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }, []);
 
   useEffect(() => {
     setLocalQuestions(kit.questions);
@@ -57,14 +74,10 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const syncQuestions = useCallback(
-    (questions: Question[]) => {
-      setLocalQuestions(questions);
-      queryClient.setQueryData(["kit", kitId], (old: unknown) => {
-        if (!old || typeof old !== "object") return old;
-        const prev = old as { kit: Kit };
-        return { ...prev, kit: { ...prev.kit, questions } };
-      });
+  const syncFromKitResponse = useCallback(
+    (nextKit: Pick<Kit, "questions" | "schedule" | "coverage">) => {
+      setLocalQuestions(nextKit.questions);
+      syncKitFromQuestionMutation(queryClient, kitId, nextKit);
     },
     [kitId, queryClient],
   );
@@ -84,7 +97,7 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
     mutationFn: ({ id, patch }: { id: string; patch: QuestionSavePayload }) =>
       api.updateQuestion(kitId, id, patch),
     onSuccess: (res) => {
-      syncQuestions(res.kit.questions);
+      syncFromKitResponse(res.kit);
       setEditingId(null);
       setError(null);
     },
@@ -95,7 +108,7 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
     mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) =>
       api.updateQuestion(kitId, id, { pinned }),
     onSuccess: (res) => {
-      syncQuestions(res.kit.questions);
+      syncFromKitResponse(res.kit);
       setError(null);
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not update pin"),
@@ -104,7 +117,7 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteQuestion(kitId, id),
     onSuccess: (res, id) => {
-      syncQuestions(res.kit.questions);
+      syncFromKitResponse(res.kit);
       if (editingId === id) setEditingId(null);
       setError(null);
     },
@@ -115,7 +128,7 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
     mutationFn: (items: { id: string; category: string }[]) =>
       api.reorderQuestions(kitId, items),
     onSuccess: (res) => {
-      syncQuestions(res.kit.questions);
+      syncFromKitResponse(res.kit);
       setError(null);
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Reorder failed"),
@@ -130,7 +143,7 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
         difficulty: 2,
       }),
     onSuccess: (res) => {
-      syncQuestions(res.kit.questions);
+      syncFromKitResponse(res.kit);
       const created = res.kit.questions.at(-1);
       if (created) setEditingId(created.id);
       setError(null);
@@ -141,12 +154,19 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
   const regenMutation = useMutation({
     mutationFn: () => api.regenerate(kitId, "questions", regenCategory),
     onSuccess: (res) => {
-      syncQuestions(res.kit.questions);
+      syncFromKitResponse(res.kit);
       setEditingId(null);
       setError(null);
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Regenerate failed"),
   });
+
+  useLayoutEffect(() => {
+    const category = scrollAfterRegenRef.current;
+    if (!category || !regenMutation.isPending) return;
+    scrollToCategory(category);
+    scrollAfterRegenRef.current = null;
+  }, [regenMutation.isPending, scrollToCategory]);
 
   function handleDragEnd(event: DragEndEvent, category: QuestionCategory) {
     if (editingId) return;
@@ -161,7 +181,7 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
     const reordered = arrayMove(items, oldIndex, newIndex);
     const other = localQuestions.filter((q) => q.category !== category);
     const next = [...other, ...reordered];
-    syncQuestions(next);
+    setLocalQuestions(next);
     reorderMutation.mutate(next.map((q) => ({ id: q.id, category: q.category })));
   }
 
@@ -196,7 +216,10 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
           isPending={regenMutation.isPending}
           idleLabel="Regenerate"
           pendingLabel="Regenerating questions…"
-          onClick={() => regenMutation.mutate()}
+          onClick={() => {
+            scrollAfterRegenRef.current = regenCategory;
+            regenMutation.mutate();
+          }}
         />
       </div>
 
@@ -209,8 +232,14 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
           isRegeneratingCategory && replaceableCount === 0 ? 2 : 0;
 
         return (
-          <Card
+          <div
             key={category}
+            ref={(node) => {
+              categoryRefs.current[category] = node;
+            }}
+            className="scroll-mt-[4.5rem]"
+          >
+          <Card
             className={cn(
               isRegeneratingCategory && "border-accent/40 ring-1 ring-accent/20",
             )}
@@ -289,6 +318,7 @@ export function KitQuestions({ kitId, kit }: { kitId: string; kit: Kit }) {
               )}
             </CardContent>
           </Card>
+          </div>
         );
       })}
     </div>
