@@ -1,17 +1,23 @@
 "use client";
 
 import { api } from "@/lib/api";
+import { ApiRequestError } from "@/lib/api-error";
+import {
+  clearAuthSessionMarker,
+  setAuthSessionMarker,
+} from "@/lib/auth-session";
+import { setUnauthorizedHandler } from "@/lib/api-error";
 import type { UserPublic } from "@/lib/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ReactNode, createContext, useContext } from "react";
+import { ReactNode, createContext, useContext, useEffect } from "react";
 
 interface AuthContextValue {
   user: UserPublic | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   logout: () => Promise<void>;
-  refresh: () => void;
+  refresh: () => Promise<unknown>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -26,17 +32,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const res = await api.me();
         return res.user;
-      } catch {
-        return null;
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 401) {
+          return null;
+        }
+        throw err;
       }
     },
     retry: false,
   });
 
+  useEffect(() => {
+    if (data) {
+      setAuthSessionMarker();
+      return;
+    }
+    if (!isLoading) {
+      clearAuthSessionMarker();
+    }
+  }, [data, isLoading]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(async () => {
+      clearAuthSessionMarker();
+      queryClient.setQueryData(["auth", "me"], null);
+      queryClient.removeQueries({ queryKey: ["kit"] });
+      queryClient.removeQueries({ queryKey: ["practice"] });
+      try {
+        await api.logout();
+      } catch {
+        /* Session may already be invalid on the server. */
+      }
+      router.replace("/login?session=expired");
+    });
+
+    return () => setUnauthorizedHandler(null);
+  }, [queryClient, router]);
+
   const logout = async () => {
-    await api.logout();
-    queryClient.setQueryData(["auth", "me"], null);
-    router.push("/login");
+    try {
+      await api.logout();
+    } finally {
+      clearAuthSessionMarker();
+      queryClient.setQueryData(["auth", "me"], null);
+      queryClient.removeQueries({ queryKey: ["kit"] });
+      queryClient.removeQueries({ queryKey: ["practice"] });
+      router.push("/login");
+    }
   };
 
   return (
@@ -46,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!data,
         logout,
-        refresh: () => void refetch(),
+        refresh: () => refetch(),
       }}
     >
       {children}

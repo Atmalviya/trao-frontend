@@ -1,5 +1,9 @@
+import {
+  ApiRequestError,
+  notifyUnauthorized,
+  parseApiError,
+} from "./api-error";
 import type {
-  ApiError,
   CreateKitInput,
   JobEventPayload,
   Kit,
@@ -9,6 +13,8 @@ import type {
   PracticeStats,
   UserPublic,
 } from "./types";
+
+export { ApiRequestError } from "./api-error";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:4000";
@@ -31,8 +37,10 @@ async function request<T>(
   const body = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const err = body as ApiError;
-    throw new Error(err?.error?.message || `Request failed (${res.status})`);
+    if (res.status === 401) {
+      await notifyUnauthorized(path);
+    }
+    throw parseApiError(body, res.status);
   }
 
   return body as T;

@@ -4,6 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
+import {
+  DIFFICULTY_OPTIONS,
+  difficultyBadgeTone,
+  difficultyLabel,
+  type Difficulty,
+} from "@/lib/difficulty";
 import type { Question, QuestionCategory } from "@/lib/types";
 import { questionCategories } from "@/lib/types";
 import { useSortable } from "@dnd-kit/sortable";
@@ -182,12 +188,16 @@ export function QuestionItem({
               <select
                 id={`difficulty-${question.id}`}
                 value={draftDifficulty}
-                onChange={(e) => setDraftDifficulty(Number(e.target.value))}
+                onChange={(e) =>
+                  setDraftDifficulty(Number(e.target.value) as Difficulty)
+                }
                 className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm cursor-pointer"
               >
-                <option value={1}>1 — Foundational</option>
-                <option value={2}>2 — Standard</option>
-                <option value={3}>3 — Advanced</option>
+                {DIFFICULTY_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -253,7 +263,9 @@ export function QuestionItem({
             <Badge tone="muted">{CATEGORY_LABELS[question.category]}</Badge>
             <Badge tone={originTone(question.origin)}>{question.origin}</Badge>
             {question.pinned ? <Badge tone="success">pinned</Badge> : null}
-            <Badge tone="muted">diff {question.difficulty}</Badge>
+            <Badge tone={difficultyBadgeTone(question.difficulty)}>
+              {difficultyLabel(question.difficulty)}
+            </Badge>
           </div>
 
           <p className="mt-2 text-sm font-medium leading-relaxed text-foreground">

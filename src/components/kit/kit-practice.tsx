@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Brain, ChevronLeft, ChevronRight, Eye } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const CONFIDENCE = [
   { value: 1, label: "No idea" },
@@ -28,13 +28,21 @@ export function KitPractice({ kitId }: { kitId: string }) {
     queryFn: () => api.getPractice(kitId),
   });
 
+  useEffect(() => {
+    if (!data) return;
+    setIndex((current) => Math.min(current, Math.max(0, data.cards.length - 1)));
+  }, [data]);
+
   const recordMutation = useMutation({
     mutationFn: ({ cardId, confidence }: { cardId: string; confidence: number }) =>
       api.recordConfidence(kitId, cardId, confidence),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["practice", kitId] });
+    onSuccess: async () => {
+      await queryClient.fetchQuery({
+        queryKey: ["practice", kitId],
+        queryFn: () => api.getPractice(kitId),
+      });
       setRevealed(false);
-      setIndex((i) => Math.min(i + 1, (data?.cards.length ?? 1) - 1));
+      setIndex(0);
     },
   });
 
@@ -72,6 +80,10 @@ export function KitPractice({ kitId }: { kitId: string }) {
 
   return (
     <div className="space-y-6">
+      <Alert variant="info">
+        Cards are ordered by what you know least — unseen first, then lowest confidence.
+      </Alert>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Coverage</CardTitle>

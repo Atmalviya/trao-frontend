@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { setAuthSessionMarker } from "@/lib/auth-session";
 import { useAuth } from "@/providers/auth-provider";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -29,7 +30,8 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await api.register(email, password);
-      refresh();
+      setAuthSessionMarker();
+      await refresh();
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");

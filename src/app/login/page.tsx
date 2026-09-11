@@ -5,19 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { setAuthSessionMarker } from "@/lib/auth-session";
 import { useAuth } from "@/providers/auth-provider";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const sessionExpired = searchParams.get("session") === "expired";
 
   useEffect(() => {
     if (isAuthenticated) router.replace("/dashboard");
@@ -29,7 +32,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await api.login(email, password);
-      refresh();
+      setAuthSessionMarker();
+      await refresh();
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -38,6 +42,63 @@ export default function LoginPage() {
     }
   }
 
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Log in</CardTitle>
+        <CardDescription>Use the email you registered with</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onSubmit} className="space-y-4">
+          {sessionExpired ? (
+            <Alert variant="warning" title="Session expired">
+              Please sign in again to continue.
+            </Alert>
+          ) : null}
+          {error ? <Alert>{error}</Alert> : null}
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium">
+              Password
+            </label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          No account?{" "}
+          <Link href="/register" className="font-medium text-accent hover:underline">
+            Register
+          </Link>
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
@@ -51,53 +112,17 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Log in</CardTitle>
-            <CardDescription>Use the email you registered with</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
-              {error ? <Alert>{error}</Alert> : null}
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              No account?{" "}
-              <Link href="/register" className="font-medium text-accent hover:underline">
-                Register
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+        <Suspense
+          fallback={
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Loading…
+              </CardContent>
+            </Card>
+          }
+        >
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );
