@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/cn";
 
-export type KitTab = "overview" | "questions" | "flashcards" | "schedule" | "practice";
+export type KitTab = "overview" | "fit" | "questions" | "flashcards" | "schedule" | "practice";
 
 const tabs: { id: KitTab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -10,6 +10,7 @@ const tabs: { id: KitTab; label: string }[] = [
   { id: "flashcards", label: "Flashcards" },
   { id: "schedule", label: "Schedule" },
   { id: "practice", label: "Practice" },
+  { id: "fit", label: "Your fit" },
 ];
 
 export function KitTabs({

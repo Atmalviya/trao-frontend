@@ -1,6 +1,7 @@
 "use client";
 
 import { GenerationProgress } from "@/components/generation-progress";
+import { KitFit } from "@/components/kit/kit-fit";
 import { KitFlashcards } from "@/components/kit/kit-flashcards";
 import { KitOverview } from "@/components/kit/kit-overview";
 import { KitPractice } from "@/components/kit/kit-practice";
@@ -30,12 +31,16 @@ export default function KitDetailPage() {
     queryFn: () => api.getKit(kitId),
     refetchInterval: (query) => {
       const d = query.state.data as KitDetail | undefined;
-      return d?.status === "generating" ? 5000 : false;
+      if (d?.status === "generating") return 5000;
+      if (d?.resumeFitStatus === "analyzing" || d?.resumeFitStatus === "pending") return 2000;
+      return false;
     },
   });
 
   useEffect(() => {
-    if (!data || data.status !== "generating") return;
+    if (!data) return;
+    const jobRunning = data.status === "generating" || data.job?.status === "running";
+    if (!jobRunning) return;
 
     const unsub = subscribeKitEvents(
       kitId,
@@ -61,7 +66,7 @@ export default function KitDetailPage() {
     );
 
     return unsub;
-  }, [data?.status, kitId, queryClient, refetch]);
+  }, [data?.status, data?.job?.status, kitId, queryClient, refetch]);
 
   async function handleDelete() {
     if (!confirm("Delete this kit? This cannot be undone.")) return;
@@ -129,6 +134,17 @@ export default function KitDetailPage() {
           <KitTabs active={tab} onChange={setTab} />
           <div role="tabpanel">
             {tab === "overview" ? <KitOverview kitId={kitId} kit={data.kit} /> : null}
+            {tab === "fit" ? (
+              <KitFit
+                kitId={kitId}
+                kit={data.kit}
+                resumeFileMeta={data.resumeFileMeta}
+                resumeFit={data.resumeFit}
+                resumeFitStatus={data.resumeFitStatus}
+                resumeFitError={data.resumeFitError}
+                onUpdated={() => void refetch()}
+              />
+            ) : null}
             {tab === "questions" ? <KitQuestions kitId={kitId} kit={data.kit} /> : null}
             {tab === "flashcards" ? <KitFlashcards kitId={kitId} kit={data.kit} /> : null}
             {tab === "schedule" ? <KitSchedule kitId={kitId} kit={data.kit} /> : null}

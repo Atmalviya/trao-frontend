@@ -6,11 +6,14 @@ import {
 import type {
   CreateKitInput,
   JobEventPayload,
+  JobStep,
   Kit,
   KitDetail,
   KitSummary,
   PracticeData,
   PracticeStats,
+  ResumeFileMeta,
+  ResumeFitStatus,
   UserPublic,
 } from "./types";
 
@@ -72,6 +75,46 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  createKitWithResume: async (formData: FormData) => {
+    const res = await fetch(`${API_URL}/kits`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (res.status === 401) await notifyUnauthorized("/kits");
+      throw parseApiError(body, res.status);
+    }
+    return body as { id: string; status: string; deduped: boolean };
+  },
+
+  uploadResume: async (kitId: string, file: File) => {
+    const formData = new FormData();
+    formData.append("resume", file);
+    const res = await fetch(`${API_URL}/kits/${kitId}/resume`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (res.status === 401) await notifyUnauthorized(`/kits/${kitId}/resume`);
+      throw parseApiError(body, res.status);
+    }
+    return body as {
+      resumeFileMeta: ResumeFileMeta;
+      resumeFitStatus: ResumeFitStatus;
+      job: { id: string; status: string; steps: JobStep[] };
+    };
+  },
+
+  reanalyzeResume: (kitId: string) =>
+    request<{
+      resumeFitStatus: ResumeFitStatus;
+      job: { id: string; status: string; steps: JobStep[] };
+    }>(`/kits/${kitId}/resume/analyze`, { method: "POST", body: "{}" }),
 
   createBatch: (cases: CreateKitInput[]) =>
     request<{ kits: { id: string; status: string; deduped: boolean; companyUrl: string }[] }>(

@@ -24,6 +24,7 @@ const STEP_DESCRIPTIONS: Record<StepName, string> = {
   coverage_check: "Closing gaps between requirements and generated questions",
   allocate_schedule: "Spreading material across your available days",
   validate_kit: "Final structure check before your kit is ready",
+  analyze_resume_fit: "Matching your resume against role requirements",
 };
 
 function stepWeight(status: StepStatus): number {

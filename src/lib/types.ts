@@ -26,6 +26,7 @@ export const stepNames = [
   "coverage_check",
   "allocate_schedule",
   "validate_kit",
+  "analyze_resume_fit",
 ] as const;
 
 export type StepName = (typeof stepNames)[number];
@@ -116,12 +117,52 @@ export interface KitSummary {
   updatedAt: string;
 }
 
+export interface ResumeFileMeta {
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  extractionMethod: "plain" | "docx" | "pdf";
+  charCount: number;
+  warnings: string[];
+}
+
+export type ResumeFitQualifies = "likely" | "partial" | "unlikely" | "insufficient_data";
+export type RequirementFitStatus = "met" | "partial" | "gap" | "unclear";
+export type ResumeFitStatus = "none" | "pending" | "analyzing" | "ready" | "failed";
+
+export interface ResumeFit {
+  analyzedAt: string;
+  resumeChars: number;
+  overall: {
+    mustMet: number;
+    mustTotal: number;
+    mustGapCount: number;
+    qualifies: ResumeFitQualifies;
+    summary: string;
+  };
+  requirements: Array<{
+    requirementId: string;
+    priority: RequirementPriority;
+    status: RequirementFitStatus;
+    evidence: string;
+    prepNote: string;
+  }>;
+  strengths: string[];
+  focusAreas: string[];
+  risks: string[];
+}
+
 export interface KitDetail {
   id: string;
   status: KitStatus;
   input: { jd: string; companyUrl: string; days: number };
   kit: Kit | null;
   notes: string[];
+  resumeFileMeta?: ResumeFileMeta | null;
+  resumeFit?: ResumeFit | null;
+  resumeFitStatus?: ResumeFitStatus;
+  resumeFitError?: string | null;
   job: {
     id: string;
     status: JobStatus;
@@ -186,4 +227,5 @@ export const STEP_LABELS: Record<StepName, string> = {
   coverage_check: "Coverage check",
   allocate_schedule: "Allocate schedule",
   validate_kit: "Validate kit",
+  analyze_resume_fit: "Analyze resume fit",
 };

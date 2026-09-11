@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ResumeUpload, validateResumeFile } from "@/components/resume/resume-upload";
 import { api } from "@/lib/api";
 import { parseBatchFile } from "@/lib/batch-parse";
 import { Upload, FileJson } from "lucide-react";
@@ -20,15 +21,33 @@ export function CreateKitForm() {
   const [jd, setJd] = useState("");
   const [companyUrl, setCompanyUrl] = useState("");
   const [days, setDays] = useState(7);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (resumeFile) {
+      const validation = validateResumeFile(resumeFile);
+      if (validation) {
+        setError(validation);
+        return;
+      }
+    }
     setLoading(true);
     try {
-      const res = await api.createKit({ jd, companyUrl, days });
+      let res;
+      if (resumeFile) {
+        const formData = new FormData();
+        formData.append("jd", jd);
+        formData.append("companyUrl", companyUrl);
+        formData.append("days", String(days));
+        formData.append("resume", resumeFile);
+        res = await api.createKitWithResume(formData);
+      } else {
+        res = await api.createKit({ jd, companyUrl, days });
+      }
       router.push(`/kits/${res.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create kit");
@@ -136,6 +155,18 @@ export function CreateKitForm() {
                     onChange={(e) => setDays(Number(e.target.value))}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Resume (optional)</label>
+                <p className="text-xs text-muted-foreground">
+                  Upload to see how you match this role after the kit is ready.
+                </p>
+                <ResumeUpload
+                  selectedFile={resumeFile}
+                  onFileSelect={setResumeFile}
+                  disabled={loading}
+                  inputId="create-resume"
+                />
               </div>
               <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                 {loading ? "Starting…" : "Generate kit"}
