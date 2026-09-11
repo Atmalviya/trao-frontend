@@ -32,22 +32,29 @@ export function ResumeUpload({
   existingMeta,
   disabled,
   inputId = "resume-file",
+  compact = false,
 }: {
   selectedFile: File | null;
   onFileSelect: (file: File | null) => void;
   existingMeta?: ResumeFileMeta | null;
   disabled?: boolean;
   inputId?: string;
+  compact?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="space-y-2">
       <div
-        className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center"
+        className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-center ${
+          compact ? "px-4 py-3" : "px-6 py-8"
+        }`}
       >
-        <FileText className="mb-2 h-7 w-7 text-muted-foreground" aria-hidden />
-        <p className="text-sm text-muted-foreground">
+        <FileText
+          className={`text-muted-foreground ${compact ? "mb-1 h-5 w-5" : "mb-2 h-7 w-7"}`}
+          aria-hidden
+        />
+        <p className={compact ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground"}>
           PDF, DOCX, TXT, or MD · max 5 MB
         </p>
         {existingMeta && !selectedFile ? (
@@ -56,7 +63,7 @@ export function ResumeUpload({
           </p>
         ) : null}
         {selectedFile ? (
-          <div className="mt-3 flex items-center gap-2 text-sm">
+          <div className={`flex items-center gap-2 text-sm ${compact ? "mt-1.5" : "mt-3"}`}>
             <span className="font-medium">{selectedFile.name}</span>
             <span className="text-muted-foreground">({formatBytes(selectedFile.size)})</span>
             <Button
@@ -89,7 +96,8 @@ export function ResumeUpload({
         <Button
           type="button"
           variant="outline"
-          className="mt-4"
+          size={compact ? "sm" : "md"}
+          className={compact ? "mt-2" : "mt-4"}
           disabled={disabled}
           onClick={() => fileRef.current?.click()}
         >

@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-card focus:px-4 focus:py-2"
@@ -82,13 +82,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main id="main" className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main
+        id="main"
+        className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6"
+      >
         {children}
       </main>
 
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        <BookOpen className="mx-auto mb-1 h-4 w-4 opacity-60" aria-hidden />
-        Research-backed interview prep
+      <footer className="flex h-6 shrink-0 items-center justify-center gap-1 border-t border-border/60 bg-background/40 px-4 text-[10px] leading-none text-muted-foreground/65">
+        <BookOpen className="h-2.5 w-2.5 shrink-0 opacity-45" aria-hidden />
+        <span>Research-backed interview prep</span>
       </footer>
     </div>
   );

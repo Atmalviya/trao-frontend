@@ -77,12 +77,12 @@ export function CreateKitForm() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-2 rounded-lg border border-border bg-muted/40 p-1">
+    <div className="flex flex-col gap-3">
+      <div className="flex shrink-0 gap-1.5 rounded-lg border border-border bg-muted/40 p-1">
         <button
           type="button"
           onClick={() => setMode("single")}
-          className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
             mode === "single"
               ? "bg-muted text-foreground"
               : "text-muted-foreground hover:text-foreground"
@@ -93,7 +93,7 @@ export function CreateKitForm() {
         <button
           type="button"
           onClick={() => setMode("batch")}
-          className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
             mode === "batch"
               ? "bg-muted text-foreground"
               : "text-muted-foreground hover:text-foreground"
@@ -105,14 +105,14 @@ export function CreateKitForm() {
 
       {mode === "single" ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Create a prep kit</CardTitle>
-            <CardDescription>
+          <CardHeader className="px-4 pt-4 pb-1">
+            <CardTitle className="text-base">Create a prep kit</CardTitle>
+            <CardDescription className="text-xs">
               Paste the job description and company website. We research and build your kit.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
+          <CardContent className="px-4 pb-4">
+            <form onSubmit={onSubmit} className="space-y-3">
               {error ? <Alert>{error}</Alert> : null}
               <div className="space-y-2">
                 <label htmlFor="jd" className="text-sm font-medium">
@@ -125,9 +125,10 @@ export function CreateKitForm() {
                   value={jd}
                   onChange={(e) => setJd(e.target.value)}
                   rows={10}
+                  className="min-h-[200px] resize-y"
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label htmlFor="companyUrl" className="text-sm font-medium">
                     Company website
@@ -166,34 +167,33 @@ export function CreateKitForm() {
                   onFileSelect={setResumeFile}
                   disabled={loading}
                   inputId="create-resume"
+                  compact
                 />
               </div>
-              <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-                {loading ? "Starting…" : "Generate kit"}
-              </Button>
+              <div>
+                <Button type="submit" disabled={loading} size="sm" className="w-full sm:w-auto">
+                  {loading ? "Starting…" : "Generate kit"}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
       ) : (
         <Card>
-          <CardHeader>
-            <CardTitle>Prepare for multiple roles</CardTitle>
-            <CardDescription>
+          <CardHeader className="px-4 pt-4 pb-1">
+            <CardTitle className="text-base">Prepare for multiple roles</CardTitle>
+            <CardDescription className="text-xs">
               Upload a JSON file with an array of cases. Each needs{" "}
               <code className="rounded bg-muted px-1">jd</code>,{" "}
               <code className="rounded bg-muted px-1">company_url</code> (or companyUrl), and{" "}
               <code className="rounded bg-muted px-1">days</code>.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {error ? <Alert>{error}</Alert> : null}
-            <div
-              className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center"
-            >
-              <FileJson className="mb-3 h-8 w-8 text-muted-foreground" aria-hidden />
-              <p className="text-sm text-muted-foreground">
-                JSON array, up to 20 roles
-              </p>
+          <CardContent className="px-4 pb-4">
+            {error ? <Alert className="mb-3">{error}</Alert> : null}
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-5 py-6 text-center">
+              <FileJson className="mb-2 h-7 w-7 text-muted-foreground" aria-hidden />
+              <p className="text-sm text-muted-foreground">JSON array, up to 20 roles</p>
               <input
                 ref={fileRef}
                 type="file"
@@ -208,7 +208,8 @@ export function CreateKitForm() {
               <Button
                 type="button"
                 variant="outline"
-                className="mt-4"
+                size="sm"
+                className="mt-3"
                 disabled={loading}
                 onClick={() => fileRef.current?.click()}
               >

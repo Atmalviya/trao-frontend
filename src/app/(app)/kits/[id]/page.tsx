@@ -94,8 +94,8 @@ export default function KitDetailPage() {
     data.kit?.role.title || data.kit?.source.company || data.input.companyUrl;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
@@ -113,45 +113,47 @@ export default function KitDetailPage() {
         </Button>
       </div>
 
-      {data.status === "generating" && data.job ? (
-        <GenerationProgress
-          steps={data.job.steps}
-          notes={data.notes}
-          error={data.job.error}
-          companyUrl={data.input.companyUrl}
-          days={data.input.days}
-        />
-      ) : null}
+      <div className="app-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {data.status === "generating" && data.job ? (
+          <GenerationProgress
+            steps={data.job.steps}
+            notes={data.notes}
+            error={data.job.error}
+            companyUrl={data.input.companyUrl}
+            days={data.input.days}
+          />
+        ) : null}
 
-      {data.status === "failed" ? (
-        <Alert title="Generation failed">
-          {data.job?.error?.message || "This kit could not be generated."}
-        </Alert>
-      ) : null}
+        {data.status === "failed" ? (
+          <Alert title="Generation failed">
+            {data.job?.error?.message || "This kit could not be generated."}
+          </Alert>
+        ) : null}
 
-      {data.status === "ready" && data.kit ? (
-        <>
-          <KitTabs active={tab} onChange={setTab} />
-          <div role="tabpanel">
-            {tab === "overview" ? <KitOverview kitId={kitId} kit={data.kit} /> : null}
-            {tab === "fit" ? (
-              <KitFit
-                kitId={kitId}
-                kit={data.kit}
-                resumeFileMeta={data.resumeFileMeta}
-                resumeFit={data.resumeFit}
-                resumeFitStatus={data.resumeFitStatus}
-                resumeFitError={data.resumeFitError}
-                onUpdated={() => void refetch()}
-              />
-            ) : null}
-            {tab === "questions" ? <KitQuestions kitId={kitId} kit={data.kit} /> : null}
-            {tab === "flashcards" ? <KitFlashcards kitId={kitId} kit={data.kit} /> : null}
-            {tab === "schedule" ? <KitSchedule kitId={kitId} kit={data.kit} /> : null}
-            {tab === "practice" ? <KitPractice kitId={kitId} /> : null}
+        {data.status === "ready" && data.kit ? (
+          <div className="space-y-4 pb-1">
+            <KitTabs active={tab} onChange={setTab} />
+            <div role="tabpanel">
+              {tab === "overview" ? <KitOverview kitId={kitId} kit={data.kit} /> : null}
+              {tab === "fit" ? (
+                <KitFit
+                  kitId={kitId}
+                  kit={data.kit}
+                  resumeFileMeta={data.resumeFileMeta}
+                  resumeFit={data.resumeFit}
+                  resumeFitStatus={data.resumeFitStatus}
+                  resumeFitError={data.resumeFitError}
+                  onUpdated={() => void refetch()}
+                />
+              ) : null}
+              {tab === "questions" ? <KitQuestions kitId={kitId} kit={data.kit} /> : null}
+              {tab === "flashcards" ? <KitFlashcards kitId={kitId} kit={data.kit} /> : null}
+              {tab === "schedule" ? <KitSchedule kitId={kitId} kit={data.kit} /> : null}
+              {tab === "practice" ? <KitPractice kitId={kitId} /> : null}
+            </div>
           </div>
-        </>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }
