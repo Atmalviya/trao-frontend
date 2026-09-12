@@ -1,35 +1,56 @@
 # AI Interview Prep Kit — Frontend
 
-Next.js + Tailwind UI for the Trao full-stack assessment. Pairs with the [backend repo](../backend/) (separate GitHub submission).
+Next.js UI for the Trao full-stack assessment.
 
-## Stack
+**App:** https://trao.malviya.xyz/ · **API:** https://api-trao.malviya.xyz · **Repo:** https://github.com/Atmalviya/trao-frontend
 
-- Next.js 15 (App Router)
-- Tailwind CSS 4
-- TanStack Query (server state + optimistic edits)
-- @dnd-kit (keyboard-accessible reorder)
-- Session auth via HTTP-only cookie (`credentials: include`)
+Pipeline, architecture, and batch CLI → **[backend README](https://github.com/Atmalviya/trao-backend/blob/main/README.md)**
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U[User] --> FE[Next.js App]
+  FE -->|REST + session cookie| API[Express API]
+  FE -->|SSE progress| API
+  API --> GK[generateKit]
+  API --> DB[(MongoDB)]
+  GK --> LLM[Gemini / Groq]
+  GK --> WEB[Company sites + search APIs]
+```
+
+Pipeline architecture + sequence diagrams → **[backend README](https://github.com/Atmalviya/trao-backend#architecture)**
+
+**Stack:** Next.js 15 · Tailwind CSS 4 · TanStack Query · @dnd-kit
+
+---
 
 ## Setup
 
+**Local**
+
 ```bash
-npm install
-cp .env.example .env.local
-# Set NEXT_PUBLIC_API_URL to your backend (default http://localhost:4000)
-npm run dev
+npm install && cp .env.example .env.local && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Ensure the backend is running with `WEB_ORIGIN=http://localhost:3000`.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
 
-## Features
+Backend needs `WEB_ORIGIN=http://localhost:3000`.
 
-- Register / login / logout
-- Dashboard of your kits
-- Create kit (JD + company URL + days)
-- Batch upload (JSON array of cases)
-- Live generation progress (SSE)
-- Builder: inline edit, drag reorder, pin, add/delete, per-section regenerate
-- Practice mode with confidence tracking
-- Study schedule view
+**Deployed (Vercel)**
 
-Architecture, pipeline, and batch CLI are documented in the backend README.
+```env
+NEXT_PUBLIC_API_URL=https://api-trao.malviya.cloud
+```
+
+Redeploy after changing. Backend needs `WEB_ORIGIN=https://www.trao.malviya.cloud` and `NODE_ENV=production`. No trailing slashes.
+
+---
+
+## Scripts
+
+`npm run dev` · `npm run build` · `npm start` · `npm run lint`

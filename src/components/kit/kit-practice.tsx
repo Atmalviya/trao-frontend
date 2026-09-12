@@ -7,9 +7,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
+import { applyPracticeRating, computePracticeStats } from "@/lib/practice-stats";
+import type { PracticeData } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Brain, ChevronLeft, ChevronRight, Eye } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Brain, ChevronLeft, ChevronRight, Eye, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 const CONFIDENCE = [
   { value: 1, label: "No idea" },
@@ -22,6 +24,7 @@ export function KitPractice({ kitId }: { kitId: string }) {
   const queryClient = useQueryClient();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [sessionComplete, setSessionComplete] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["practice", kitId],
@@ -36,15 +39,65 @@ export function KitPractice({ kitId }: { kitId: string }) {
   const recordMutation = useMutation({
     mutationFn: ({ cardId, confidence }: { cardId: string; confidence: number }) =>
       api.recordConfidence(kitId, cardId, confidence),
-    onSuccess: async () => {
-      await queryClient.fetchQuery({
-        queryKey: ["practice", kitId],
-        queryFn: () => api.getPractice(kitId),
-      });
+    onMutate: async ({ cardId, confidence }) => {
+      await queryClient.cancelQueries({ queryKey: ["practice", kitId] });
+      const previous = queryClient.getQueryData<PracticeData>(["practice", kitId]);
+      if (previous) {
+        const { progress, stats } = applyPracticeRating(previous, cardId, confidence);
+        queryClient.setQueryData<PracticeData>(["practice", kitId], {
+          ...previous,
+          progress,
+          stats,
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["practice", kitId], context.previous);
+      }
+    },
+    onSuccess: (result) => {
+      if (result?.stats) {
+        queryClient.setQueryData<PracticeData>(["practice", kitId], (current) => {
+          if (!current) return current;
+          return { ...current, stats: result.stats };
+        });
+      }
       setRevealed(false);
-      setIndex(0);
+      setIndex((current) => {
+        const total = queryClient.getQueryData<PracticeData>(["practice", kitId])?.cards.length ?? 0;
+        if (current + 1 >= total) {
+          setSessionComplete(true);
+          return current;
+        }
+        return current + 1;
+      });
     },
   });
+
+  const startNewSession = async () => {
+    setSessionComplete(false);
+    setRevealed(false);
+    setIndex(0);
+    await queryClient.fetchQuery({
+      queryKey: ["practice", kitId],
+      queryFn: () => api.getPractice(kitId),
+    });
+  };
+
+  const stats = useMemo(() => {
+    if (!data?.cards.length) {
+      return {
+        total: 0,
+        seen: 0,
+        unseen: 0,
+        byConfidence: { 1: 0, 2: 0, 3: 0, 4: 0 },
+        averageConfidence: null,
+      };
+    }
+    return computePracticeStats(data.cards, data.progress);
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -72,16 +125,55 @@ export function KitPractice({ kitId }: { kitId: string }) {
     );
   }
 
+  const pctSeen = stats.total ? Math.round((stats.seen / stats.total) * 100) : 0;
+
+  if (sessionComplete) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Coverage</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-2xl font-bold">{pctSeen}%</p>
+              <p className="text-xs text-muted-foreground">Cards seen</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.unseen}</p>
+              <p className="text-xs text-muted-foreground">Unseen</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {stats.averageConfidence?.toFixed(1) ?? "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">Avg confidence</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <EmptyState
+          icon={Brain}
+          title="Session complete"
+          description="You went through every card in this session. Start again to focus on what you know least."
+          action={
+            <Button type="button" onClick={() => void startNewSession()}>
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              Practice again
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   const card = data.cards[index];
   const progress = data.progress[card.id];
-  const pctSeen = data.stats.total
-    ? Math.round((data.stats.seen / data.stats.total) * 100)
-    : 0;
 
   return (
     <div className="space-y-6">
       <Alert variant="info">
-        Cards are ordered by what you know least — unseen first, then lowest confidence.
+        This session keeps a fixed order. Your next session will start with what you know least.
       </Alert>
 
       <Card>
@@ -94,19 +186,19 @@ export function KitPractice({ kitId }: { kitId: string }) {
             <p className="text-xs text-muted-foreground">Cards seen</p>
           </div>
           <div>
-            <p className="text-2xl font-bold">{data.stats.unseen}</p>
+            <p className="text-2xl font-bold">{stats.unseen}</p>
             <p className="text-xs text-muted-foreground">Unseen</p>
           </div>
           <div>
             <p className="text-2xl font-bold">
-              {data.stats.averageConfidence?.toFixed(1) ?? "—"}
+              {stats.averageConfidence?.toFixed(1) ?? "—"}
             </p>
             <p className="text-xs text-muted-foreground">Avg confidence</p>
           </div>
           <div className="flex flex-wrap gap-1">
             {CONFIDENCE.map((c) => (
               <Badge key={c.value} tone="muted">
-                {c.label}: {data.stats.byConfidence[c.value as 1 | 2 | 3 | 4]}
+                {c.label}: {stats.byConfidence[c.value as 1 | 2 | 3 | 4]}
               </Badge>
             ))}
           </div>
