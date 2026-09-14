@@ -7,7 +7,7 @@ import { KitOverview } from "@/components/kit/kit-overview";
 import { KitPractice } from "@/components/kit/kit-practice";
 import { KitQuestions } from "@/components/kit/kit-questions";
 import { KitSchedule } from "@/components/kit/kit-schedule";
-import { KitTabs, type KitTab } from "@/components/kit/kit-tabs";
+import { KitTabs, kitTabId, kitTabPanelId, type KitTab } from "@/components/kit/kit-tabs";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -133,7 +133,11 @@ export default function KitDetailPage() {
         {data.status === "ready" && data.kit ? (
           <div className="space-y-4 pb-1">
             <KitTabs active={tab} onChange={setTab} />
-            <div role="tabpanel">
+            <div
+              role="tabpanel"
+              id={kitTabPanelId(tab)}
+              aria-labelledby={kitTabId(tab)}
+            >
               {tab === "overview" ? <KitOverview kitId={kitId} kit={data.kit} /> : null}
               {tab === "fit" ? (
                 <KitFit
